@@ -1,0 +1,14 @@
+.env
+*.env
+
+wallet/
+**/wallet/
+
+*.pem
+*.p12
+*.jks
+*.sso
+
+target/
+.idea/
+*.iml
