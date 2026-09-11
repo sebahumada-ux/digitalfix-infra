@@ -1,0 +1,58 @@
+services:
+
+  workorders:
+    build:
+      context: ../../../digitalfix-ms-workorders
+    container_name: digitalfix-workorders
+    environment:
+      DB_WALLET_PATH: /opt/oracle/wallet
+      DB_USERNAME: ${WORKORDERS_DB_USERNAME}
+      DB_PASSWORD: ${WORKORDERS_DB_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m"
+    volumes:
+      - ../../../wallet:/opt/oracle/wallet:ro
+    expose:
+      - "8080"
+    restart: unless-stopped
+    networks:
+      - digitalfix-network
+
+  catalog:
+    build:
+      context: ../../../digitalfix-ms-catalog
+    container_name: digitalfix-catalog
+    environment:
+      DB_WALLET_PATH: /opt/oracle/wallet
+      DB_USERNAME: ${CATALOG_DB_USERNAME}
+      DB_PASSWORD: ${CATALOG_DB_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m"
+    volumes:
+      - ../../../wallet:/opt/oracle/wallet:ro
+    expose:
+      - "8082"
+    restart: unless-stopped
+    networks:
+      - digitalfix-network
+
+  bff:
+    build:
+      context: ../../../digitalfix-ms-bff
+    container_name: digitalfix-bff
+    environment:
+      WORKORDERS_URL: http://workorders:8080
+      CATALOG_URL: http://catalog:8082
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m"
+    ports:
+      - "8081:8081"
+    depends_on:
+      - workorders
+      - catalog
+    restart: unless-stopped
+    networks:
+      - digitalfix-network
+
+networks:
+  digitalfix-network:
+    driver: bridge
