@@ -15,8 +15,7 @@ Cliente / Postman
 AWS API Gateway
         |
         v
-JWT Authorizer
-Microsoft Entra ID
+JWT Authorizer - Microsoft Entra ID
         |
         v
 VPC Link
@@ -27,47 +26,39 @@ Network Load Balancer interno
         v
 EC2 - Docker Compose
         |
-        +--------------------+
-        |                    |
-        v                    v
-      BFF :8081
-        |
-        +--------------------+
-        |                    |
-        v                    v
-Workorders :8080       Catalog :8082
-        |                    |
-        +---------+----------+
-                  |
-                  v
-             Oracle Cloud
-````
+        v
+BFF :8081
+   /       \
+  v         v
+Workorders  Catalog
+  :8080      :8082
+     \       /
+      v     v
+    Oracle Cloud
+```
 
 ## Componentes desplegados
 
 ### ms-digitalfix-bff
-
-* Spring Boot
-* Java 21
-* Puerto 8081
-* Punto de acceso a Workorders y Catalog
-* Valida tokens JWT de Microsoft Entra ID
+- Spring Boot
+- Java 21
+- Puerto 8081
+- Punto de acceso a Workorders y Catalog
+- Valida tokens JWT de Microsoft Entra ID
 
 ### ms-digitalfix-workorders
-
-* Spring Boot
-* Java 21
-* Puerto interno 8080
-* Gestión de órdenes de trabajo
-* Persistencia en Oracle Cloud
+- Spring Boot
+- Java 21
+- Puerto interno 8080
+- Gestión de órdenes de trabajo
+- Persistencia en Oracle Cloud
 
 ### ms-digitalfix-catalog
-
-* Spring Boot
-* Java 21
-* Puerto interno 8082
-* Gestión del catálogo de servicios
-* Persistencia en Oracle Cloud
+- Spring Boot
+- Java 21
+- Puerto interno 8082
+- Gestión del catálogo de servicios
+- Persistencia en Oracle Cloud
 
 ## Seguridad
 
@@ -91,7 +82,7 @@ Token válido   -> 200 OK
 
 El puerto 8081 del BFF no está abierto directamente a Internet.
 
-El acceso al BFF desde API Gateway se realiza mediante:
+El flujo de acceso es:
 
 ```text
 API Gateway
@@ -111,7 +102,7 @@ El archivo de despliegue se encuentra en:
 infra/apps/compose.yml
 ```
 
-Servicios:
+Servicios desplegados:
 
 ```text
 digitalfix-bff
@@ -119,7 +110,7 @@ digitalfix-workorders
 digitalfix-catalog
 ```
 
-Todos los servicios utilizan una red Docker interna:
+Todos utilizan la red Docker:
 
 ```text
 digitalfix-network
@@ -129,7 +120,7 @@ digitalfix-network
 
 Las credenciales no se almacenan en GitHub.
 
-El despliegue utiliza variables de entorno para:
+Se utilizan las siguientes variables:
 
 ```text
 WORKORDERS_DB_USERNAME
@@ -140,17 +131,17 @@ AZURE_TENANT_ID
 AZURE_CLIENT_ID
 ```
 
-El archivo `.env` se mantiene únicamente en el servidor y está excluido mediante `.gitignore`.
+El archivo `.env` permanece únicamente en el servidor y está excluido mediante `.gitignore`.
 
 ## Oracle Wallet
 
 Oracle Wallet se utiliza para conectar los microservicios con Oracle Cloud.
 
-El Wallet:
+- No se almacena en las imágenes Docker.
+- No se almacena en GitHub.
+- Se monta como volumen de solo lectura.
 
-* No se almacena en las imágenes Docker.
-* No se almacena en GitHub.
-* Se monta como volumen de solo lectura dentro de los contenedores.
+Ruta dentro de los contenedores:
 
 ```text
 /opt/oracle/wallet
@@ -158,36 +149,45 @@ El Wallet:
 
 ## Despliegue
 
-Desde el servidor EC2:
+Desde EC2:
 
 ```bash
 cd ~/digitalfix
-docker compose -f digitalfix-infra/infra/apps/compose.yml --env-file .env build
-docker compose -f digitalfix-infra/infra/apps/compose.yml --env-file .env up -d
+
+docker compose \
+  -f digitalfix-infra/infra/apps/compose.yml \
+  --env-file .env \
+  build
+
+docker compose \
+  -f digitalfix-infra/infra/apps/compose.yml \
+  --env-file .env \
+  up -d
 ```
 
-Para verificar los contenedores:
+Verificación:
 
 ```bash
-docker compose -f digitalfix-infra/infra/apps/compose.yml --env-file .env ps
+docker compose \
+  -f digitalfix-infra/infra/apps/compose.yml \
+  --env-file .env \
+  ps
 ```
 
 ## Pruebas realizadas
 
-Se verificó correctamente:
-
-* BFF desplegado en AWS EC2.
-* Workorders desplegado mediante Docker.
-* Catalog desplegado mediante Docker.
-* Conexión de Workorders con Oracle Cloud.
-* Conexión de Catalog con Oracle Cloud.
-* Comunicación BFF → Workorders.
-* Comunicación BFF → Catalog.
-* API Gateway como punto de entrada.
-* Validación JWT con Microsoft Entra ID.
-* Rechazo de solicitudes sin token.
-* Rechazo de tokens inválidos.
-* Acceso con token válido.
-* Acceso a Catalog mediante API Gateway.
-* Acceso a Workorders mediante API Gateway.
-* Bloqueo del acceso directo al BFF desde Internet.
+- BFF desplegado en AWS EC2.
+- Workorders desplegado mediante Docker.
+- Catalog desplegado mediante Docker.
+- Conexión de Workorders con Oracle Cloud.
+- Conexión de Catalog con Oracle Cloud.
+- Comunicación BFF → Workorders.
+- Comunicación BFF → Catalog.
+- API Gateway como punto de entrada.
+- Validación JWT con Microsoft Entra ID.
+- Sin token → 401.
+- Token inválido → 401.
+- Token válido → 200.
+- Catalog accesible mediante API Gateway.
+- Workorders accesible mediante API Gateway.
+- Acceso directo al BFF desde Internet bloqueado.
