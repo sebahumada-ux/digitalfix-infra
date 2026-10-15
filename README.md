@@ -481,3 +481,48 @@ Actualmente se encuentran implementados y validados:
 * Oracle Wallet.
 * Variables de entorno.
 * Restricción de acceso externo directo a los microservicios.
+
+## Matriz de funcionalidades
+
+La matriz reúne el alcance de DigitalFix para la Evaluación Parcial 2, indicando el estado de cada funcionalidad, su componente responsable y la evidencia para verificarla.
+
+| ID | Funcionalidad | Estado | Componente responsable | Evidencia verificable |
+| --- | --- | --- | --- | --- |
+| F01 | Frontend desplegado en AWS con HTTPS | Implementada | Angular, Nginx y Caddy | [Dockerfile del frontend][frontend-docker], [configuración Nginx][frontend-nginx] y acceso al sitio durante la demostración. |
+| F02 | Autenticación con Microsoft Entra ID y utilización de JWT | Implementada | Angular MSAL, Entra ID y BFF | [Configuración MSAL][frontend-auth] y [validación JWT y roles del BFF][bff-security]. Pruebas de acceso autorizado y rechazo de solicitudes inválidas. |
+| F03 | Consumo del backend mediante API Gateway | Implementada | Frontend, API Gateway y BFF | [Configuración del consumo de API Gateway][frontend-auth]. Verificación de rutas, authorizer e integraciones en AWS. |
+| F04 | Backend desplegado e integrado con Oracle Database | Implementada | BFF, Workorders y Catalog | [Docker Compose del backend][backend-compose], configuración de persistencia y consulta de datos desde el frontend. |
+| F05 | Clúster RabbitMQ de dos nodos | Implementada | rabbitmq-1 y rabbitmq-2 | Verificación en AWS mediante `docker ps` y `docker exec rabbitmq-1 rabbitmqctl cluster_status`. |
+| F06 | Tres colas principales y sus respectivas DLQ | Implementada | RabbitMQ y Notify | [Declaración de colas y DLQ][rabbit-config]. Consulta de colas y prueba de mensaje inválido enviado a `q.cmd.email.dlq`. |
+| F07 | Exchanges direct y topic con sus bindings | Implementada | Configuración RabbitMQ de Workorders y Notify | [RabbitMqConfig.java][rabbit-config], con `cmd.direct`, `cmd.topic`, `cmd.dead.dlx` y sus claves de enrutamiento. |
+| F08 | Administración de colas, exchanges y bindings mediante API REST | Implementada | Rabbit Admin | [RabbitAdminController.java][rabbit-controller] y [DTO de entrada][rabbit-dtos]. Pruebas de creación y eliminación mediante `/api/rabbit`. |
+| F09 | Flujo completo de eventos con confirmación y manejo de errores | Implementada | Workorders, RabbitMQ y Notify | [Productor de eventos][event-publisher] y [consumidores por dominio][notify-listeners]. Cambio de estado de una orden, procesamiento con ACK y rechazo con NACK sin reencolar hacia DLQ. |
+
+### Resultado del alcance
+
+Las nueve funcionalidades de esta matriz se declaran implementadas:
+
+**Porcentaje de implementación declarado: 9 / 9 × 100 = 100%.**
+
+Durante la presentación se demuestra su funcionamiento. El porcentaje evaluado depende de las funcionalidades efectivamente demostradas.
+
+### Alcance del procesamiento de Notify
+
+Notify valida los eventos de Email, Dispatch y Report y registra su procesamiento en logs. Esta implementación demuestra el flujo de mensajería, el ACK manual y el tratamiento de errores mediante DLQ.
+
+### Evidencias de infraestructura
+
+El archivo `infra/apps/compose.yml` publicado en este repositorio corresponde al backend base: BFF, Workorders y Catalog.
+
+La configuración Compose utilizada para el clúster RabbitMQ y los servicios adicionales desplegados en AWS debe incorporarse al repositorio para permitir reproducir el ambiente completo.
+
+[frontend-docker]: https://github.com/sebahumada-ux/frontend-digitalfix/blob/main/Dockerfile
+[frontend-nginx]: https://github.com/sebahumada-ux/frontend-digitalfix/blob/main/nginx.conf
+[frontend-auth]: https://github.com/sebahumada-ux/frontend-digitalfix/blob/main/src/app/app.config.ts
+[bff-security]: https://github.com/sebahumada-ux/digitalfix-ms-bff/blob/main/src/main/java/cl/duoc/digitalfix/bff/config/SecurityConfig.java
+[backend-compose]: https://github.com/sebahumada-ux/digitalfix-infra/blob/main/infra/apps/compose.yml
+[rabbit-config]: https://github.com/sebahumada-ux/ms-digitalfix-notify/blob/main/src/main/java/ms_digitalfix_notify/config/RabbitMqConfig.java
+[rabbit-controller]: https://github.com/sebahumada-ux/ms-digitalfix-rabbit-admin/blob/main/src/main/java/ms_digitalfix_rabbit_admin/controller/RabbitAdminController.java
+[rabbit-dtos]: https://github.com/sebahumada-ux/ms-digitalfix-rabbit-admin/tree/main/src/main/java/ms_digitalfix_rabbit_admin/dto
+[event-publisher]: https://github.com/sebahumada-ux/digitalfix-ms-workorders/blob/main/src/main/java/cl/duoc/digitalfix/workorders/messaging/WorkOrderEventPublisher.java
+[notify-listeners]: https://github.com/sebahumada-ux/ms-digitalfix-notify/tree/main/src/main/java/ms_digitalfix_notify/listener
