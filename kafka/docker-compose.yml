@@ -177,7 +177,7 @@ services:
     - /bin/bash
     - /scripts/init-topics.sh
     volumes:
-    - ./infraestructura-kafka/init-topics.sh:/scripts/init-topics.sh:ro
+    - ./digitalfix-infra/kafka/scripts/init-topics.sh:/scripts/init-topics.sh:ro
     depends_on:
     - kafka-1
     - kafka-2
