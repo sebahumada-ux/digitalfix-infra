@@ -6,6 +6,7 @@ La solución contempla dos entornos independientes: la infraestructura de servic
 Equipo
 - Sebastián Ahumada
 - Benjamín Gutiérrez
+
 Tecnologías
 Categoría	Tecnologías
 Infraestructura cloud	AWS EC2, API Gateway, VPC Link, Network Load Balancer
