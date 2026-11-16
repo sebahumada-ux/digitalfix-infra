@@ -1,294 +1,27 @@
-DigitalFix - Infraestructura
-Repositorio de infraestructura de DigitalFix. Reúne el despliegue del backend en AWS EC2 y el entorno de Apache Kafka implementado.
+DigitalFix — Infraestructura
+Infraestructura y configuración de despliegue de DigitalFix, una plataforma de gestión de servicios técnicos basada en microservicios. El repositorio centraliza la configuración del backend en AWS, junto con una arquitectura de mensajería con Apache Kafka, implementada mediante Docker Compose.
 
-Ambos entornos se documentan por separado: infra/apps/compose.yml corresponde al backend de AWS y kafka/docker-compose.yml al laboratorio Kafka local en Docker. La prueba Kafka local no equivale a un despliegue de Kafka en AWS.
-Integrantes
+La solución contempla dos entornos independientes: la infraestructura de servicios de negocio en AWS y el entorno de integración Kafka. La existencia de archivos para ambos entornos no implica que el clúster Kafka esté desplegado en AWS.
+Equipo
 - Sebastián Ahumada
 - Benjamín Gutiérrez
-Tecnologías utilizadas
-- AWS EC2
-- AWS API Gateway
-- AWS VPC Link
-- AWS Network Load Balancer
-- Docker
-- Docker Compose
-- Microsoft Entra ID
-- JWT
-- Oracle Cloud Database
-- Oracle Wallet
-- Spring Boot
-- Java 21
-- Apache Kafka y ZooKeeper (laboratorio EV3)
-- Kafka UI
-- Spring Kafka
-- Server-Sent Events (SSE, mejora adicional en una rama de Analytics)
-Infraestructura Apache Kafka — EV3
-Objetivo
-Para EV3 se agregó un sistema de mensajería por eventos que complementa la arquitectura existente sin sustituir Oracle ni RabbitMQ. Workorders guarda las órdenes en Oracle y puede publicar sus cambios en Kafka. Kafka Analytics consume eventos de órdenes, los clasifica y produce métricas en un segundo tópico. Kafka Admin ofrece una API REST para consultar y gestionar tópicos y grupos.
-
-Este entorno se probó localmente con Docker en un computador de la universidad. La integración del dashboard mediante SSE es una mejora posterior ubicada en ramas de desarrollo, no en los main de frontend y Analytics.
-Arquitectura Kafka
-Angular / DigitalFix (4200)
-           |
-           v
-Workorders (8080) --> Oracle Cloud Database
-           |
-           | Publicador Kafka (producer)
-           v
-digitalfix.ordenes.eventos
-           |
-           v
-Kafka Analytics (consumer / clasificador)
-           |
-           | Produce métrica
-           v
-digitalfix.analitica.eventos
-           |
-           v
-Kafka Analytics (consumer / resumen)
-           |
-           +--> GET /api/analytics/resumen (8091)
-           |
-           +--> SSE /api/analytics/stream (*) --> Dashboard Angular
-
-Kafka Admin (8090) --> API REST de tópicos y grupos
-Kafka UI (8088)    --> Inspección visual de brokers, tópicos y mensajes
-
-(*) SSE disponible en la rama feature/actualizacion-tiempo-real de Analytics.
-Componentes del laboratorio
-Servicio	Cantidad	Función	Acceso desde el host
-ZooKeeper	3	Coordinación del clúster usado en EV3	Red interna Docker
-Brokers Kafka	3	Almacenar y replicar mensajes	localhost:19092, 19093, 19094
-Kafka UI	1	Inspeccionar brokers, tópicos, particiones y mensajes	http://localhost:8088
-Kafka Admin	1	Administración mediante API REST	http://localhost:8090
-Kafka Analytics	1	Consumo de eventos y generación de métricas	http://localhost:8091
+Tecnologías
+Categoría	Tecnologías
+Infraestructura cloud	AWS EC2, API Gateway, VPC Link, Network Load Balancer
+Contenedores	Docker, Docker Compose
+Backend	Java 21, Spring Boot
+Frontend	Angular
+Identidad y seguridad	Microsoft Entra ID, OAuth 2.0, JWT
+Persistencia	Oracle Autonomous Database, Oracle Wallet
+Mensajería	RabbitMQ, Apache Kafka, ZooKeeper
+Observabilidad y administración	Kafka UI, API REST de Kafka Admin
+Actualización de interfaz	Server-Sent Events (SSE), disponible en ramas de desarrollo
 
 
-Los servicios kafka-admin y kafka-analytics utilizan el perfil de Compose apps; kafka-init utiliza el perfil tools y se ejecuta para inicializar los tópicos. El resto se inicia sin perfil.
-Tópicos configurados
-Tópico	Función
-digitalfix.ordenes.eventos	Eventos emitidos al crear o cambiar una orden
-digitalfix.analitica.eventos	Métricas derivadas de los eventos de órdenes
-digitalfix.ordenes.eventos.DLT	Destino de órdenes que fallan durante el consumo
-digitalfix.analitica.eventos.DLT	Destino de métricas que fallan durante el consumo
-
-
-Los cuatro tópicos se crean con:
-- 3 particiones por tópico.
-- Factor de replicación 3.
-- min.insync.replicas=2.
-- retention.ms=604800000 (7 días).
-- cleanup.policy=delete.
-Estos parámetros se definen en [`kafka/scripts/init-topics.sh`](kafka/scripts/init-topics.sh). Se utiliza --if-not-exists para evitar errores al volver a ejecutar el script; esto no modifica la configuración de tópicos que ya existan.
-Repositorios de los microservicios
-- Kafka Admin — rama main.
-- Kafka Analytics — implementación base en main.
-- Workorders — productor real de órdenes en main.
-- Frontend — frontend base en main.
-Mejoras adicionales, no fusionadas a main:
-- Analytics con SSE — rama feature/actualizacion-tiempo-real.
-- Dashboard Live Monitor — rama feature/dashboard-monitor-en-vivo.
-Despliegue del laboratorio en Windows (PowerShell)
-La siguiente estructura fue utilizada en la prueba local:
-DigitalFix_EV3/
-├── digitalfix-infra/
-├── ms-digitalfix-kafka-admin/
-├── ms-digitalfix-kafka-analytics/
-├── digitalfix-ms-workorders/
-└── frontend-digitalfix/
-Importante: ejecutar desde la carpeta padre DigitalFix_EV3, con los repositorios como carpetas hermanas. El Compose de Kafka utiliza estas rutas para construir Admin y Analytics.
-1. Iniciar Docker Desktop y levantar Kafka, ZooKeeper y Kafka UI:
-cd "C:\Users\va-alumno\Documents\DigitalFix_EV3"  # Ejemplo: reemplazar por la ubicación real
-
-docker compose --project-directory . -f .\digitalfix-infra\kafka\docker-compose.yml up -d
-2. Inicializar los cuatro tópicos:
-docker compose --project-directory . -f .\digitalfix-infra\kafka\docker-compose.yml --profile tools run --rm kafka-init
-3. Compilar las imágenes y ejecutar los microservicios de Kafka:
-docker compose --project-directory . -f .\digitalfix-infra\kafka\docker-compose.yml --profile apps up -d --build kafka-admin kafka-analytics
-4. Verificar el estado:
-docker compose --project-directory . -f .\digitalfix-infra\kafka\docker-compose.yml --profile apps ps
-El entorno completo de Kafka debe mostrar 9 contenedores activos: tres ZooKeeper, tres brokers, Kafka UI, Kafka Admin y Analytics. El contenedor efímero kafka-init finaliza después de crear los tópicos.
-
-Nota de puertos: en uno de los computadores de la universidad, Windows impidió reservar 8090. Se cambió solo en la copia local el mapeo de Admin de 127.0.0.1:8090:8090 a 127.0.0.1:18090:8090. En el Compose publicado el puerto estándar continúa siendo 8090.
-Verificación de funcionamiento
-Herramienta	Dirección o navegación	Qué comprobar
-Kafka UI	http://localhost:8088	3 brokers y los 4 tópicos
-Kafka Admin	http://localhost:8090/api/kafka/topics	Listado de tópicos
-Kafka Admin	http://localhost:8090/api/kafka/groups	Grupos consumidores
-Kafka Analytics	http://localhost:8091/api/analytics/resumen	totalEventos, porCategoria y recientes
-Kafka UI	Topics → digitalfix.ordenes.eventos → Messages	JSON enviado por Workorders, key, partición y offset
-Kafka UI	Topics → digitalfix.analitica.eventos → Messages	Métrica procesada publicada por Analytics
-
-
-Para probar el flujo real, Workorders debe ejecutarse por separado con Java 21, acceso a Oracle y su Wallet, y con KAFKA_ENABLED=true. El frontend local usa Angular y un proxy hacia Workorders; la rama Live Monitor también consume Analytics. No se incluyen credenciales en este repositorio.
-
-Flujo comprobado en el laboratorio: crear una orden desde Angular, localizar su mensaje en digitalfix.ordenes.eventos, cambiar su estado a ASIGNADA y observar los eventos de creación y asignación en GET /api/analytics/resumen. La versión con SSE permitió observar la actualización del dashboard sin presionar F5.
-Grupos de consumidores y errores
-Analytics tiene dos consumidores en StreamListeners.java:
-- Grupo digitalfix-analytics-workorders: consume el tópico de órdenes, valida y publica métricas.
-- Grupo digitalfix-analytics-metrics: consume el tópico de analítica y actualiza el resumen.
-La configuración utiliza concurrency=3, enable-auto-commit=false, ack-mode=record y auto-offset-reset=earliest cuando no hay offset válido.
-
-KafkaErrorsConfig.java configura validaciones, registro de errores, reintentos para errores recuperables y envío a tópicos .DLT. Los mensajes considerados inválidos mediante IllegalArgumentException se tratan como no reintentables.
-
-Persistencia: las órdenes se guardan en Oracle y los mensajes se conservan en Kafka durante la ventana de retención. El resumen (totalEventos, categorías y últimos 20 eventos) se mantiene en memoria en ResumenService.java, por lo que sus contadores se reinician al reiniciar Analytics. No hay una base de datos adicional de Analytics en esta implementación.
-Detener el laboratorio sin borrar datos
-docker compose --project-directory . -f .\digitalfix-infra\kafka\docker-compose.yml --profile apps stop
-Este comando detiene los servicios y conserva los volúmenes de Docker. No utilizar down -v si se desea conservar los mensajes del laboratorio.
-Seguridad y alcance
-- No subir Oracle Wallet, contraseñas, .env, tokens ni certificados a GitHub.
-- El laboratorio Kafka está pensado para ejecución local; no debe describirse como infraestructura Kafka desplegada en AWS.
-- La autenticación JWT del sistema y las rutas de AWS corresponden al backend original y no deben confundirse con los endpoints locales de Kafka.
-- La autenticación y autorización del stream SSE requieren endurecimiento antes de exponerlo en producción.
-Arquitectura
-El backend de DigitalFix utiliza una arquitectura de microservicios desplegada en AWS.
-
-Flujo principal:
-Angular / Cliente
-        |
-        v
-AWS API Gateway
-        |
-        v
-JWT Authorizer
-Microsoft Entra ID
-        |
-        v
-VPC Link
-        |
-        v
-Network Load Balancer
-        |
-        v
-AWS EC2
-Docker Compose
-        |
-        v
-BFF :8081
-   /       \
-  v         v
-Workorders  Catalog
-  :8080      :8082
-     \       /
-      v     v
-    Oracle Cloud
-Componentes desplegados
-DigitalFix BFF
-Servicio encargado de centralizar las solicitudes provenientes del frontend.
-
-Características:
-- Spring Boot
-- Java 21
-- Puerto interno 8081
-- Comunicación con Workorders
-- Comunicación con Catalog
-- Validación de JWT
-- Autorización por roles
-Nombre del contenedor:
-digitalfix-bff
-Workorders
-Microservicio encargado de la gestión de órdenes de trabajo.
-
-Características:
-- Spring Boot
-- Java 21
-- Puerto interno 8080
-- Persistencia en Oracle Database
-- Creación y consulta de órdenes
-- Actualización de estados
-- Validación de transiciones
-Nombre del contenedor:
-digitalfix-workorders
-Catalog
-Microservicio encargado de la gestión del catálogo técnico.
-
-Características:
-- Spring Boot
-- Java 21
-- Puerto interno 8082
-- Persistencia en Oracle Database
-- Consulta de servicios
-- Creación y actualización de servicios
-Nombre del contenedor:
-digitalfix-catalog
-Seguridad
-El backend no se expone directamente a Internet.
-
-El acceso externo se realiza mediante:
-Internet
-→ AWS API Gateway
-→ JWT Authorizer
-→ VPC Link
-→ Network Load Balancer
-→ EC2
-→ BFF
-AWS API Gateway utiliza un JWT Authorizer configurado con Microsoft Entra ID.
-
-Scope utilizado:
-access_as_user
-Comportamiento validado:
-Sin token      → 401 Unauthorized
-Token inválido → 401 Unauthorized
-Token válido   → Acceso permitido según rol
-El BFF realiza una segunda validación de seguridad y autorización por roles.
-
-Roles utilizados:
-Admin
-Supervisor
-Cliente
-Control de acceso
-Permisos implementados:
-Recurso	Admin	Supervisor	Cliente
-Workorders - consultar	Sí	Sí	Sí
-Workorders - crear	Sí	Sí	Sí
-Workorders - cambiar estado	Sí	Sí	No
-Catalog	Sí	Sí	No
-
-
-El frontend aplica restricciones de navegación, pero la autorización real también se valida en el backend.
-API Gateway
-AWS API Gateway funciona como punto de entrada al backend.
-
-Flujo:
-Frontend
-→ API Gateway
-→ JWT Authorizer
-→ VPC Link
-→ Network Load Balancer
-→ BFF
-Las rutas protegidas requieren un token JWT válido.
-
-Las solicitudes OPTIONS utilizadas para CORS se permiten sin autenticación.
-Network Load Balancer
-Se utiliza un Network Load Balancer interno para conectar API Gateway con el BFF desplegado en EC2.
-
-El NLB recibe las solicitudes desde el VPC Link y las dirige hacia el servicio BFF.
-VPC Link
-El VPC Link permite que API Gateway acceda de forma privada a los recursos internos de la VPC.
-
-Esto evita exponer directamente los puertos internos de los microservicios.
-AWS EC2
-Los servicios backend se ejecutan dentro de una instancia AWS EC2 mediante Docker.
-
-Servicios ejecutados:
-digitalfix-bff
-digitalfix-workorders
-digitalfix-catalog
-Todos los servicios se encuentran conectados mediante una red Docker interna.
-Docker Compose
-El archivo principal de despliegue se encuentra en:
-infra/apps/compose.yml
-La configuración levanta los siguientes servicios:
-digitalfix-bff
-digitalfix-workorders
-digitalfix-catalog
-Los contenedores utilizan la red:
-digitalfix-network
-Estructura del repositorio
+1. Organización del repositorio
 digitalfix-infra/
-├── .gitignore
-├── .gitattributes
 ├── README.md
+├── .gitignore
 ├── infra/
 │   └── apps/
 │       └── compose.yml
@@ -296,155 +29,240 @@ digitalfix-infra/
     ├── docker-compose.yml
     └── scripts/
         └── init-topics.sh
-Variables de entorno
-Las credenciales y configuraciones sensibles no se almacenan directamente en GitHub.
+Ruta	Responsabilidad
+infra/apps/compose.yml	Definición de los servicios backend asociados al entorno AWS
+kafka/docker-compose.yml	Definición del clúster Kafka, ZooKeeper, Kafka UI y microservicios Kafka
+kafka/scripts/init-topics.sh	Creación y configuración inicial de los tópicos Kafka
 
-Variables utilizadas:
-WORKORDERS_DB_USERNAME
-WORKORDERS_DB_PASSWORD
-CATALOG_DB_USERNAME
-CATALOG_DB_PASSWORD
-AZURE_TENANT_ID
-AZURE_CLIENT_ID
-El archivo:
-.env
-permanece únicamente en el servidor.
-Archivos excluidos
-El archivo .gitignore evita subir información sensible.
 
-Se excluyen:
-.env
-*.env
+2. Arquitectura de servicios en AWS
+La arquitectura del backend utiliza AWS API Gateway como punto de entrada, autenticación con Microsoft Entra ID y comunicación privada hacia los servicios desplegados en EC2.
+                     Angular
+                        |
+                        v
+                  API Gateway
+                        |
+               JWT Authorizer
+                 Entra ID
+                        |
+                        v
+                     VPC Link
+                        |
+                        v
+              Network Load Balancer
+                        |
+                        v
+                   AWS EC2
+                 Docker Compose
+                        |
+                      BFF
+                   /       \
+                  v         v
+             Workorders   Catalog
+                  \         /
+                   v       v
+               Oracle Database
+Componentes
+Servicio	Puerto interno	Función
+DigitalFix BFF	8081	Centraliza solicitudes, verifica JWT y aplica autorización por roles
+Workorders	8080	Gestiona órdenes de trabajo, transiciones de estado y persistencia
+Catalog	8082	Administra el catálogo de servicios técnicos
 
-wallet/
-**/wallet/
 
-*.pem
-*.p12
-*.jks
-*.sso
+Los servicios backend utilizan Java 21 y Spring Boot. Workorders y Catalog persisten sus entidades en Oracle mediante sus respectivas configuraciones de conexión.
+Autenticación y autorización
+El acceso a los recursos protegidos se gestiona mediante tokens JWT emitidos por Microsoft Entra ID. AWS API Gateway valida los tokens de entrada y el backend aplica las reglas de autorización correspondientes.
 
-target/
-.idea/
-*.iml
-Oracle Database
-Los microservicios Workorders y Catalog utilizan Oracle Database para persistencia.
+Roles contemplados: Admin, Supervisor y Cliente.
+Operación	Admin	Supervisor	Cliente
+Consultar órdenes	Sí	Sí	Sí
+Crear órdenes	Sí	Sí	Sí
+Cambiar estado de órdenes	Sí	Sí	No
+Gestionar catálogo	Sí	Sí	No
 
-Cada dominio utiliza su propia configuración de conexión.
 
-Las credenciales se entregan mediante variables de entorno.
-Oracle Wallet
-Oracle Wallet se utiliza para realizar la conexión segura con Oracle Cloud Database.
+El frontend controla la visibilidad de sus opciones, pero la autorización efectiva se aplica en el backend. Los servicios internos no requieren exposición directa a Internet para ser consumidos a través de API Gateway.
+Integración con RabbitMQ
+La arquitectura incorpora RabbitMQ para mensajería relacionada con procesos operativos, como notificaciones, despacho y generación de reportes. Las colas, los exchanges, los bindings y sus respectivos mecanismos de mensajes fallidos pertenecen a esta integración.
 
-El wallet:
-- No se almacena en GitHub.
-- No se incluye dentro de las imágenes Docker.
-- Se monta como volumen de solo lectura.
-Ruta utilizada dentro de los contenedores:
-/opt/oracle/wallet
-Despliegue
-Desde la instancia EC2:
-cd ~/digitalfix
-Construir las imágenes:
-docker compose \
-  -f digitalfix-infra/infra/apps/compose.yml \
-  --env-file .env \
-  build
-Levantar los servicios:
-docker compose \
-  -f digitalfix-infra/infra/apps/compose.yml \
-  --env-file .env \
-  up -d
-Verificación
-Para comprobar el estado de los contenedores:
-docker compose \
-  -f digitalfix-infra/infra/apps/compose.yml \
-  --env-file .env \
-  ps
-También puede utilizarse:
-docker ps
-Contenedores esperados:
-digitalfix-bff
-digitalfix-workorders
-digitalfix-catalog
-Logs
-Para revisar el BFF:
-docker logs --tail 25 digitalfix-bff
-Para Workorders:
-docker logs --tail 25 digitalfix-workorders
-Para Catalog:
-docker logs --tail 25 digitalfix-catalog
-Pruebas realizadas
-Se validaron las siguientes funcionalidades:
-- BFF desplegado en AWS EC2.
-- Workorders desplegado mediante Docker.
-- Catalog desplegado mediante Docker.
-- Conexión de Workorders con Oracle Database.
-- Conexión de Catalog con Oracle Database.
-- Comunicación BFF → Workorders.
-- Comunicación BFF → Catalog.
-- API Gateway funcionando como punto de entrada.
-- JWT Authorizer integrado con Microsoft Entra ID.
-- Solicitud sin token → 401.
-- Token inválido → 401.
-- Token válido → acceso permitido.
-- Acceso de Admin a Catalog.
-- Acceso de Cliente a Workorders.
-- Acceso de Cliente a Catalog → 403.
-- CORS configurado para el frontend.
-- Acceso directo al BFF desde Internet bloqueado.
-- Contenedores funcionando correctamente en EC2.
-Flujo completo de una solicitud
-Usuario
-   |
-   v
-Angular
-   |
-   v
-Microsoft Entra ID
-   |
-   v
-Access Token JWT
-   |
-   v
-AWS API Gateway
-   |
-   v
-JWT Authorizer
-   |
-   v
-VPC Link
-   |
-   v
-Network Load Balancer
-   |
-   v
-BFF
-   |
-   +-------------------+
-   |                   |
-   v                   v
-Workorders          Catalog
-   |                   |
-   +---------+---------+
-             |
-             v
-        Oracle Database
-Estado del proyecto
-Actualmente se encuentran implementados y validados:
-- Arquitectura de microservicios.
-- API Gateway.
-- JWT Authorizer.
-- Integración con Microsoft Entra ID.
-- VPC Link.
-- Network Load Balancer.
-- AWS EC2.
-- Docker.
-- Docker Compose.
-- BFF.
-- Workorders.
-- Catalog.
-- Oracle Database.
-- Oracle Wallet.
-- Variables de entorno.
-- Restricción de acceso externo directo a los microservicios.
+Kafka complementa RabbitMQ: se utiliza para transportar eventos de órdenes y producir información analítica, sin reemplazar las integraciones de mensajería previamente implementadas.
+
+Referencias del código:
+- Configuración RabbitMQ
+- Administración RabbitMQ
+- Productor Workorders para RabbitMQ
+3. Arquitectura Apache Kafka
+La integración Kafka permite publicar, consumir y procesar eventos de órdenes de trabajo de manera desacoplada, mediante dos tópicos principales y sus respectivos tópicos de mensajes fallidos (Dead Letter Topics).
+        Angular / DigitalFix
+                 |
+                 v
+       Workorders + Oracle
+                 |
+          Productor Kafka
+                 |
+                 v
+    digitalfix.ordenes.eventos
+                 |
+                 v
+       Kafka Analytics
+       Consumer de órdenes
+       Validación y clasificación
+                 |
+          Productor Kafka
+                 |
+                 v
+   digitalfix.analitica.eventos
+                 |
+                 v
+       Kafka Analytics
+       Consumer de métricas
+                 |
+           Resumen en memoria
+                 |
+       +---------+----------+
+       |                    |
+       v                    v
+  API REST              SSE (rama de
+  /resumen              desarrollo)
+                            |
+                            v
+                      Dashboard Angular
+Servicios Kafka
+Componente	Cantidad	Puerto del host	Función
+ZooKeeper	3	Interno	Coordinación de la arquitectura Kafka configurada
+Brokers Kafka	3	19092, 19093, 19094	Recepción, almacenamiento y replicación de eventos
+Kafka UI	1	8088	Inspección de brokers, tópicos, particiones, mensajes y grupos
+Kafka Admin	1	8090	Administración de tópicos y grupos mediante API REST
+Kafka Analytics	1	8091	Consumo, clasificación y publicación de métricas
+
+
+Kafka Admin y Kafka Analytics se ejecutan con el perfil apps de Docker Compose. El servicio kafka-init, perteneciente al perfil tools, inicializa los tópicos y finaliza al completar su tarea.
+Tópicos
+Tópico	Propósito
+digitalfix.ordenes.eventos	Eventos asociados a la creación y modificación de órdenes
+digitalfix.analitica.eventos	Métricas derivadas de los eventos de órdenes
+digitalfix.ordenes.eventos.DLT	Eventos de órdenes que no pudieron procesarse correctamente
+digitalfix.analitica.eventos.DLT	Eventos de métricas que no pudieron procesarse correctamente
+
+
+Los cuatro tópicos utilizan la siguiente configuración inicial:
+Parámetro	Valor
+Particiones	3
+Factor de replicación	3
+Réplicas mínimas sincronizadas	min.insync.replicas=2
+Retención	604800000 ms (7 días)
+Política de limpieza	delete
+
+
+La configuración se aplica desde [`kafka/scripts/init-topics.sh`](kafka/scripts/init-topics.sh). El script utiliza --if-not-exists; por tanto, crea tópicos faltantes, pero no modifica automáticamente la configuración de los ya existentes.
+Producción y consumo de eventos
+Workorders publica eventos JSON al crear una orden o modificar su estado. La clave (key) del mensaje corresponde al identificador de la orden, lo que permite mantener la afinidad de sus eventos con una partición mientras no cambie el número de particiones.
+
+Kafka Analytics implementa dos consumidores en StreamListeners.java:
+1. Consume eventos de digitalfix.ordenes.eventos, valida el contenido y publica una métrica en digitalfix.analitica.eventos.
+2. Consume las métricas publicadas y actualiza los contadores y la colección de eventos recientes.
+Las reglas de clasificación están separadas en ClasificadorOrden.java. Las métricas pueden incluir las categorías CAMBIO_ESTADO, ORDEN_ASIGNADA, ORDEN_CERRADA y ORDEN_CANCELADA, según el estado recibido.
+Consumer groups
+Grupo	Tópico consumido	Responsabilidad
+digitalfix-analytics-workorders	digitalfix.ordenes.eventos	Validar órdenes y generar métricas
+digitalfix-analytics-metrics	digitalfix.analitica.eventos	Registrar métricas en el resumen
+
+
+Los listeners utilizan concurrencia 3, confirmación por registro (ack-mode: record) y enable-auto-commit: false. El grupo y los offsets permiten coordinar la distribución del procesamiento y consultar el atraso (lag) de cada partición.
+Manejo de errores y DLT
+KafkaErrorsConfig.java define el tratamiento de excepciones durante el consumo, incluido el registro de errores y el envío de mensajes no procesables al tópico .DLT correspondiente.
+- Los errores reintentables utilizan una política de reintentos con FixedBackOff.
+- Las excepciones IllegalArgumentException, utilizadas para entradas inválidas, se consideran no reintentables.
+- Los eventos derivados al DLT conservan la partición de origen.
+Persistencia y alcance de las métricas
+Las órdenes de trabajo se almacenan en Oracle. Kafka conserva los mensajes de acuerdo con la retención configurada. El resumen de Analytics (totalEventos, porCategoria y recientes) se administra en memoria, mediante ResumenService.java, sin una base de datos analítica adicional.
+
+En consecuencia, los contadores se reinician con el proceso de Analytics. La retención en Kafka no implica una reconstrucción automática del resumen en memoria.
+4. Actualización del dashboard mediante SSE
+La arquitectura dispone de una extensión para mostrar cambios en la interfaz sin recargar la página. Server-Sent Events (SSE) notifica al navegador después de registrar una nueva métrica. Angular recibe el aviso y vuelve a consultar las APIs de Workorders y Analytics.
+
+Esta extensión se mantiene en ramas de desarrollo independientes y no forma parte del main de esos repositorios:
+- Kafka Analytics — feature/actualizacion-tiempo-real
+- Frontend DigitalFix — feature/dashboard-monitor-en-vivo
+El endpoint SSE se expone como /api/analytics/stream en la versión de Analytics de esa rama. Esta funcionalidad está orientada a la visualización de cambios; no sustituye el transporte de eventos entre microservicios realizado por Kafka.
+5. Despliegue del entorno Kafka
+Requisitos
+- Docker Engine y Docker Compose.
+- Acceso a los repositorios de Kafka Admin y Kafka Analytics.
+- Puertos del host disponibles para Kafka y los servicios auxiliares.
+- Java 21 y Node.js compatible con Angular para ejecutar Workorders y el frontend fuera de Docker, cuando corresponda.
+- Conexión autorizada a Oracle y Wallet configurada para ejecutar Workorders.
+Organización del directorio de trabajo
+El archivo Compose utiliza rutas relativas para construir las imágenes de Kafka Admin y Kafka Analytics. Se requiere disponer los repositorios en un mismo directorio padre:
+DigitalFix/
+├── digitalfix-infra/
+├── ms-digitalfix-kafka-admin/
+├── ms-digitalfix-kafka-analytics/
+├── digitalfix-ms-workorders/
+└── frontend-digitalfix/
+Para utilizar SSE, se debe seleccionar la rama feature/actualizacion-tiempo-real de Analytics y feature/dashboard-monitor-en-vivo del frontend. La infraestructura Kafka mantiene su configuración en main.
+Inicio de servicios
+Desde el directorio padre (DigitalFix/), ejecutar:
+
+1. Iniciar Kafka, ZooKeeper y Kafka UI:
+docker compose --project-directory . -f ./digitalfix-infra/kafka/docker-compose.yml up -d
+2. Inicializar los tópicos:
+docker compose --project-directory . -f ./digitalfix-infra/kafka/docker-compose.yml --profile tools run --rm kafka-init
+3. Construir e iniciar Kafka Admin y Analytics:
+docker compose --project-directory . -f ./digitalfix-infra/kafka/docker-compose.yml --profile apps up -d --build kafka-admin kafka-analytics
+4. Comprobar el estado:
+docker compose --project-directory . -f ./digitalfix-infra/kafka/docker-compose.yml --profile apps ps
+Al estar todos los servicios iniciados, se esperan nueve contenedores en ejecución: tres ZooKeeper, tres brokers, Kafka UI, Kafka Admin y Kafka Analytics. kafka-init es un proceso temporal, por lo que no permanece activo.
+Puertos: el mapeo predeterminado de Kafka Admin es 127.0.0.1:8090:8090. Si está reservado, puede modificarse el puerto del host (por ejemplo, 127.0.0.1:18090:8090) sin alterar el puerto interno del servicio.
+
+Endpoints y administración
+Servicio	Dirección	Uso
+Kafka UI	http://localhost:8088	Visualización del clúster, tópicos y mensajes
+Kafka Admin	http://localhost:8090/api/kafka/topics	Listado y administración de tópicos
+Kafka Admin	http://localhost:8090/api/kafka/groups	Consulta de grupos de consumidores
+Kafka Analytics	http://localhost:8091/api/analytics/resumen	Resumen de métricas
+Kafka Analytics con SSE	http://localhost:8091/api/analytics/stream	Suscripción a eventos de actualización
+
+
+Kafka Admin contempla operaciones REST para crear, consultar, modificar y eliminar tópicos de prueba, ampliar particiones y consultar grupos de consumidores, sus offsets y su lag.
+Operación y diagnóstico
+Consultar logs de Analytics:
+docker compose --project-directory . -f ./digitalfix-infra/kafka/docker-compose.yml --profile apps logs --tail=100 kafka-analytics
+Detener los servicios sin eliminar volúmenes:
+docker compose --project-directory . -f ./digitalfix-infra/kafka/docker-compose.yml --profile apps stop
+Evitar down -v cuando se necesite conservar el contenido de los volúmenes persistentes de Kafka.
+6. Despliegue del backend en AWS
+El backend principal utiliza el archivo [`infra/apps/compose.yml`](infra/apps/compose.yml) y las variables de entorno correspondientes al servidor.
+
+Desde el directorio padre que contiene digitalfix-infra/:
+docker compose -f digitalfix-infra/infra/apps/compose.yml --env-file .env build
+docker compose -f digitalfix-infra/infra/apps/compose.yml --env-file .env up -d
+docker compose -f digitalfix-infra/infra/apps/compose.yml --env-file .env ps
+El entorno AWS de BFF, Workorders y Catalog es independiente del Compose utilizado para el clúster Kafka. La configuración de la mensajería RabbitMQ y de otros servicios asociados se administra conforme a su propio despliegue.
+7. Seguridad y configuración sensible
+Las credenciales, tokens, archivos .env, certificados y Oracle Wallet no deben incorporarse al control de versiones.
+- Administrar los secretos mediante variables de entorno o mecanismos seguros de aprovisionamiento.
+- Mantener Oracle Wallet fuera de los repositorios y montarlo con los permisos mínimos necesarios.
+- Evitar exponer directamente los puertos internos de los microservicios.
+- Aplicar controles de autenticación y autorización antes de habilitar APIs de administración o SSE fuera de un entorno confiable.
+- No incluir credenciales ni valores sensibles en documentación, comandos de ejemplo o registros públicos.
+La autenticación del backend principal y las rutas de AWS no deben confundirse con los endpoints locales utilizados para Kafka.
+8. Repositorios relacionados
+Componente	Repositorio
+Workorders	digitalfix-ms-workorders
+BFF	digitalfix-ms-bff
+Frontend	frontend-digitalfix
+Kafka Admin	ms-digitalfix-kafka-admin
+Kafka Analytics	ms-digitalfix-kafka-analytics
+Rabbit Admin	ms-digitalfix-rabbit-admin
+Notify	ms-digitalfix-notify
+
+
+9. Alcance de la solución
+DigitalFix separa las responsabilidades de persistencia, mensajería y visualización:
+- Oracle Database: persistencia de las entidades de negocio.
+- RabbitMQ: mensajería orientada a procesos operativos.
+- Apache Kafka: distribución y conservación temporal de eventos.
+- Kafka Analytics: procesamiento, clasificación y consulta de métricas en memoria.
+- SSE + Angular: actualización de indicadores y visualizaciones mediante notificaciones desde el backend, en las ramas indicadas.
+Esta separación permite extender la capacidad analítica del sistema sin modificar el propósito principal de los servicios existentes.
