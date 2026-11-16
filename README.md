@@ -1,10 +1,13 @@
 DigitalFix - Infraestructura
+
 Repositorio de infraestructura y despliegue de DigitalFix, una plataforma de gestión de servicios técnicos desarrollada con arquitectura de microservicios.
+
 
 Contiene la configuración del backend en AWS y la infraestructura de mensajería con Apache Kafka mediante Docker Compose. Estos entornos se documentan por separado para facilitar su mantenimiento y despliegue.
 Integrantes
 - Sebastián Ahumada
 - Benjamín Gutiérrez
+
 Tecnologías utilizadas
 - AWS EC2
 - AWS API Gateway
@@ -22,6 +25,7 @@ Tecnologías utilizadas
 - ZooKeeper
 - Kafka UI
 - RabbitMQ
+
 Arquitectura
 El backend de DigitalFix utiliza una arquitectura de microservicios desplegada en AWS.
 
@@ -54,6 +58,7 @@ Workorders  Catalog
      \       /
       v     v
     Oracle Cloud
+
 Componentes desplegados
 DigitalFix BFF
 Servicio encargado de centralizar las solicitudes provenientes del frontend.
@@ -66,6 +71,7 @@ Características:
 - Comunicación con Catalog
 - Validación de JWT
 - Autorización por roles
+
 Nombre del contenedor:
 digitalfix-bff
 Workorders
@@ -79,6 +85,7 @@ Características:
 - Creación y consulta de órdenes
 - Actualización de estados
 - Validación de transiciones
+
 Nombre del contenedor:
 digitalfix-workorders
 Catalog
@@ -91,6 +98,7 @@ Características:
 - Persistencia en Oracle Database
 - Consulta de servicios
 - Creación y actualización de servicios
+
 Nombre del contenedor:
 digitalfix-catalog
 Seguridad
@@ -119,6 +127,7 @@ Admin
 Supervisor
 Cliente
 Control de acceso
+
 Permisos implementados:
 Recurso	Admin	Supervisor	Cliente
 Workorders - consultar	Sí	Sí	Sí
