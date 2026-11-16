@@ -1,4 +1,7 @@
-DigitalFix — Infraestructura
+# DigitalFix - Infraestructura
+
+Repositorio de infraestructura y despliegue en AWS del proyecto **DigitalFix**.
+
 Infraestructura y configuración de despliegue de DigitalFix, una plataforma de gestión de servicios técnicos basada en microservicios. El repositorio centraliza la configuración del backend en AWS, junto con una arquitectura de mensajería con Apache Kafka, implementada mediante Docker Compose.
 
 La solución contempla dos entornos independientes: la infraestructura de servicios de negocio en AWS y el entorno de integración Kafka. La existencia de archivos para ambos entornos no implica que el clúster Kafka esté desplegado en AWS.
