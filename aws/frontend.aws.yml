@@ -1,0 +1,16 @@
+services:
+  frontend:
+    build:
+      context: ./frontend-digitalfix
+    container_name: digitalfix-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8085:80"
+    networks:
+      - kafka-shared
+    mem_limit: 256m
+
+networks:
+  kafka-shared:
+    external: true
+    name: digitalfix-kafka-ev3_kafka-lab

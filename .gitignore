@@ -12,3 +12,17 @@ wallet/
 target/
 .idea/
 *.iml
+
+# Credenciales y archivos privados AWS
+.env
+.env.*
+!.env.example
+wallet/
+Wallet_*/
+*.pem
+*.key
+*.p12
+*.sso
+*.jks
+*.bak
+Caddyfile.aws

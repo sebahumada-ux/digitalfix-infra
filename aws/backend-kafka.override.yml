@@ -1,0 +1,27 @@
+services:
+  workorders:
+    environment:
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka-1:9092,kafka-2:9092,kafka-3:9092"
+
+      RABBITMQ_HOST: rabbitmq-1
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?}
+
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "2"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "1"
+
+    networks:
+      - digitalfix-network
+      - kafka-shared
+
+  catalog:
+    environment:
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "2"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "1"
+
+networks:
+  kafka-shared:
+    external: true
+    name: digitalfix-kafka-ev3_kafka-lab
