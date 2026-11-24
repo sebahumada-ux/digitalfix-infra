@@ -625,3 +625,10 @@ Las mejoras de actualización automática mediante SSE y el dashboard de monitor
 **Tecnologías principales:** Java 21, Spring Boot, Docker, AWS, RabbitMQ y Apache Kafka.
 
 **Arquitectura:** Microservicios y procesamiento asíncrono de eventos.
+
+## Despliegue completo en AWS
+
+- [Guia de despliegue integrado en AWS](aws/README.md)
+- [Configuraciones Docker Compose](aws/)
+- [Plantilla de variables de entorno](aws/.env.example)
+- [Plantilla de configuracion HTTPS](aws/Caddyfile.aws.example)

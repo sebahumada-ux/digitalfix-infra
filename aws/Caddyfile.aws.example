@@ -1,0 +1,27 @@
+DOMINIO_FRONTEND {
+    basic_auth {
+        evaluacion HASH_FRONTEND
+    }
+    reverse_proxy digitalfix-frontend:80
+}
+
+DOMINIO_KAFKA {
+    basic_auth {
+        evaluacion HASH_HERRAMIENTAS
+    }
+    reverse_proxy kafka-ui:8080
+}
+
+DOMINIO_ADMIN {
+    basic_auth {
+        evaluacion HASH_HERRAMIENTAS
+    }
+    reverse_proxy kafka-admin:8090
+}
+
+DOMINIO_ANALYTICS {
+    basic_auth {
+        evaluacion HASH_HERRAMIENTAS
+    }
+    reverse_proxy kafka-analytics:8091
+}

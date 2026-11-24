@@ -1,0 +1,23 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: digitalfix-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.aws:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - kafka-shared
+
+networks:
+  kafka-shared:
+    external: true
+    name: digitalfix-kafka-ev3_kafka-lab
+
+volumes:
+  caddy_data:
+  caddy_config:

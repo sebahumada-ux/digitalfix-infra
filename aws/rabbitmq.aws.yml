@@ -1,0 +1,45 @@
+name: digitalfix-rabbit
+
+services:
+  rabbitmq-1:
+    image: rabbitmq:4.1.8-management
+    hostname: rabbitmq-1
+    container_name: digitalfix-rabbitmq-1
+    restart: unless-stopped
+    environment:
+      RABBITMQ_NODENAME: rabbit@rabbitmq-1
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:?}
+    ports:
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-1-data:/var/lib/rabbitmq
+    networks:
+      - digitalfix-network
+    mem_limit: 850m
+
+  rabbitmq-2:
+    image: rabbitmq:4.1.8-management
+    hostname: rabbitmq-2
+    container_name: digitalfix-rabbitmq-2
+    restart: unless-stopped
+    environment:
+      RABBITMQ_NODENAME: rabbit@rabbitmq-2
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:?}
+    volumes:
+      - rabbitmq-2-data:/var/lib/rabbitmq
+    networks:
+      - digitalfix-network
+    mem_limit: 850m
+
+networks:
+  digitalfix-network:
+    external: true
+    name: digitalfix_digitalfix-network
+
+volumes:
+  rabbitmq-1-data:
+  rabbitmq-2-data:
